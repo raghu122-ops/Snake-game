@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reptile Color-Eater</title>
+    <style>
+        :root {
+            --snake-color: #22c55e;
+            --bg-color: #020617;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg-color);
+            font-family: sans-serif;
+            cursor: none;
+        }
+
+        /* Animated Grid Background */
+        #bg-canvas { position: fixed; top: 0; left: 0; z-index: 0; }
+
+        .segment {
+            position: absolute;
+            border-radius: 40% 40% 50% 50%;
+            pointer-events: none;
+            background: var(--snake-color);
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            z-index: 10;
+            transition: background 0.2s ease; /* Smooth color transition */
+        }
+        .head { filter: brightness(1.2); z-index: 11; }
+        
+        .eye { position: absolute; width: 20%; height: 20%; background: white; border-radius: 50%; top: 20%; }
+        .eye.left { left: 15%; }
+        .eye.right { right: 15%; }
+
+        #burger {
+            position: absolute;
+            font-size: 35px;
+            z-index: 5;
+            transition: transform 0.1s;
+        }
+
+        /* UI and Game Over */
+        #score-board {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            z-index: 100;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        #game-over {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #22c55e;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+    <div id="burger">🍔</div>
+    <div id="score-board">Score: <span id="score">0</span></div>
+
+    <div id="game-over">
+        <h1 style="color: #ef4444; font-size: 50px;">GAME OVER</h1>
+        <p>You hit the border!</p>
+        <button onclick="resetGame()">Try Again</button>
+    </div>
+
+    <div id="container"></div>
+
+    <script>
+        const container = document.getElementById('container');
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        const burger = document.getElementById('burger');
+        const scoreEl = document.getElementById('score');
+        const gameOverScreen = document.getElementById('game-over');
+        
+        let segments = [];
+        let score = 0;
+        let isDead = false;
+        const mouse = { x: window.innerWidth/2, y: window.innerHeight/2 };
+        let burgerPos = { x: 0, y: 0 };
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function getRandomColor() {
+            const hues = [0, 45, 90, 150, 210, 280, 320]; // Bright colors
+            return `hsl(${hues[Math.floor(Math.random() * hues.length)]}, 80%, 50%)`;
+        }
+
+        function createSegment(i) {
+            const el = document.createElement('div');
+            el.className = 'segment' + (i === 0 ? ' head' : '');
+            const size = Math.max(30 - (i * 0.7), 8);
+            el.style.width = size + 'px';
+            el.style.height = (size + 5) + 'px';
+            if (i === 0) el.innerHTML = '<div class="eye left"></div><div class="eye right"></div>';
+            container.appendChild(el);
+            return { el, x: mouse.x, y: mouse.y };
+        }
+
+        function moveBurger() {
+            burgerPos.x = Math.random() * (window.innerWidth - 60) + 30;
+            burgerPos.y = Math.random() * (window.innerHeight - 60) + 30;
+            burger.style.left = burgerPos.x + 'px';
+            burger.style.top = burgerPos.y + 'px';
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreEl.innerText = score;
+            isDead = false;
+            container.innerHTML = '';
+            segments = [];
+            gameOverScreen.style.display = 'none';
+            document.documentElement.style.setProperty('--snake-color', '#22c55e');
+            for(let i=0; i<20; i++) segments.push(createSegment(i));
+            moveBurger();
+            animate();
+        }
+
+        window.addEventListener('mousemove', e => {
+            if(!isDead) {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            }
+        });
+
+        function animate() {
+            if (isDead) return;
+
+            // Draw faint grid
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 0.5;
+            for(let i=0; i<canvas.width; i+=50) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for(let i=0; i<canvas.height; i+=50) {
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            let tx = mouse.x;
+            let ty = mouse.y;
+
+            segments.forEach((seg, i) => {
+                seg.x += (tx - seg.x) * 0.2;
+                seg.y += (ty - seg.y) * 0.2;
+                
+                const angle = Math.atan2(ty - seg.y, tx - seg.x) * 180 / Math.PI + 90;
+                seg.el.style.transform = `translate(${seg.x}px, ${seg.y}px) rotate(${angle}deg)`;
+
+                if (i === 0) {
+                    // 1. Check Border Collision
+                    if (seg.x < 0 || seg.x > window.innerWidth || seg.y < 0 || seg.y > window.innerHeight) {
+                        isDead = true;
+                        document.documentElement.style.setProperty('--snake-color', '#ef4444');
+                        gameOverScreen.style.display = 'flex';
+                    }
+
+                    // 2. Check Burger Collision
+                    const dist = Math.hypot(seg.x - burgerPos.x, seg.y - burgerPos.y);
+                    if (dist < 40) {
+                        score++;
+                        scoreEl.innerText = score;
+                        moveBurger();
+                        // Change Color!
+                        document.documentElement.style.setProperty('--snake-color', getRandomColor());
+                        // Add segment
+                        segments.push(createSegment(segments.length));
+                    }
+                }
+                tx = seg.x;
+                ty = seg.y;
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        resetGame();
+    </script>
+</body>
+</html>

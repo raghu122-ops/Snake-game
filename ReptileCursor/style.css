@@ -1,0 +1,14 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #0f172a; /* Dark background */
+}
+
+.segment {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none; /* So it doesn't interfere with clicks */
+    background: linear-gradient(45-deg, #22c55e, #16a34a); /* Reptile Green */
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+    transform: translate(-50%, -50%);
+}
